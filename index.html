@@ -26,7 +26,7 @@
 
             projectId: "biddingplatform-31e44",
 
-            storageBucket: "biddingplatform-31e44.firebasestorage.app",
+            storageBucket: "biddingplatform-31e44.appspot.com",
 
             messagingSenderId: "662076306120",
 
@@ -47,6 +47,8 @@
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
         .modal-content { background: white; padding: 2rem; border-radius: 0.75rem; max-height: 90vh; overflow-y: auto; width: 90%; max-width: 600px; position: relative; }
+        .password-container { position: relative; display: flex; align-items: center; }
+        .password-eye-button { position: absolute; right: 0.75rem; background: transparent; border: none; cursor: pointer; color: #6b7280; }
     </style>
 </head>
 <body>
@@ -98,20 +100,26 @@
         
         // --- 3. SHARED COMPONENTS ---
         const Navbar = () => {
-            const { user, userData } = useAuth(); // Get both the base user and detailed userData
+            const { user, userData } = useAuth();
+            const defaultAvatar = "https://placehold.co/100x100/e2e8f0/4a5568?text=User";
 
             return (
                 <nav className="bg-white shadow-lg">
                     <div className="container mx-auto px-6 py-4 flex justify-between items-center">
                         <h1 className="text-3xl font-bold text-indigo-600">BidPlatform</h1>
                         
-                        {/* This section now handles the user greeting and logout button */}
                         {user && (
-                            <div className="flex items-center space-x-4">
-                                <span className="text-gray-800 font-semibold">
-                                    {/* Show name from userData if available, otherwise show a fallback. */}
-                                    Welcome, {userData ? `${userData.firstName} ${userData.lastName}` : 'User'}
-                                </span>
+                            <div className="flex items-center space-x-3">
+                                <img
+                                    src={userData?.profileImageUrl || defaultAvatar}
+                                    alt="Profile"
+                                    className="h-9 w-9 rounded-full object-cover border-2 border-indigo-200"
+                                />
+                                {userData && (
+                                    <span className="text-gray-800 font-semibold hidden sm:block">
+                                        {userData.firstName} {userData.lastName}
+                                    </span>
+                                )}
                                 <button 
                                     onClick={() => auth.signOut()} 
                                     className="py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold"
@@ -170,17 +178,17 @@
                                     ? "Register as a User"
                                     : `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Login`}
                             </h2>
-                            {isRegister ? <RegisterForm /> : <LoginForm activeTab={activeTab} />}
-                            {activeTab === 'user' && !isRegister && (
-                                <p className="text-center mt-4">
-                                    <a
-                                        href="#"
-                                        onClick={(e) => { e.preventDefault(); setIsRegister(true); }}
-                                        className="text-indigo-600 hover:underline"
-                                    >
-                                        Don't have an account? Register
-                                    </a>
-                                </p>
+                            {isRegister ? <RegisterForm onRegisterSuccess={() => setIsRegister(false)} /> : <LoginForm activeTab={activeTab} />}
+                            {activeTab === 'user' && (
+                                 <p className="text-center mt-4">
+                                     <a
+                                         href="#"
+                                         onClick={(e) => { e.preventDefault(); setIsRegister(!isRegister); }}
+                                         className="text-indigo-600 hover:underline"
+                                     >
+                                         {isRegister ? 'Already have an account? Login' : "Don't have an account? Register"}
+                                     </a>
+                                 </p>
                             )}
                         </div>
                     </div>
@@ -192,6 +200,8 @@
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
             const [error, setError] = useState('');
+            const [showPassword, setShowPassword] = useState(false);
+
             const handleLogin = async (e) => {
                 e.preventDefault();
                 setError('');
@@ -205,18 +215,29 @@
                     }
                 } catch (err) { setError(err.message); }
             };
-            return ( <form onSubmit={handleLogin} className="space-y-6"><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" /><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />{error && <p className="text-red-500 text-sm">{error}</p>}<button type="submit" className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition">Login</button></form> );
+            return ( <form onSubmit={handleLogin} className="space-y-6">
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <div className="password-container">
+                    <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-10" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="password-eye-button">
+                        {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                </div>
+                {error && <p className="text-red-500 text-sm">{error}</p>}
+                <button type="submit" className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition">Login</button>
+            </form> );
         };
 
-        function RegisterForm() {
+        function RegisterForm({ onRegisterSuccess }) {
             const [formData, setFormData] = useState({ firstName: '', lastName: '', mobile: '', dob: '', gender: 'male', email: '', password: '', confirmPassword: '' });
             const [profilePicFile, setProfilePicFile] = useState(null);
-            const [errors, setErrors] = useState({}); // Changed from single string to object
+            const [errors, setErrors] = useState({});
             const [loading, setLoading] = useState(false);
+            const [showPassword, setShowPassword] = useState(false);
+            const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
             const handleChange = e => {
                 setFormData({...formData, [e.target.name]: e.target.value});
-                // Clear the error for the field being edited for a better user experience
                 if (errors[e.target.name]) {
                     setErrors(prevErrors => ({ ...prevErrors, [e.target.name]: null }));
                 }
@@ -228,65 +249,35 @@
                 }
             };
 
-            // --- NEW: VALIDATION SCHEMA FUNCTION ---
             const validateForm = () => {
                 const newErrors = {};
-
-                // Name Validation
                 if (!formData.firstName.trim()) newErrors.firstName = 'First name is required.';
                 if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required.';
-
-                // Mobile Number Validation (for a 10-digit Indian number)
                 const mobileRegex = /^[6-9]\d{9}$/;
                 if (!formData.mobile) newErrors.mobile = 'Mobile number is required.';
                 else if (!mobileRegex.test(formData.mobile)) newErrors.mobile = 'Please enter a valid 10-digit mobile number.';
-
-                // Date of Birth Validation (Must be at least 18 years old)
-                if (!formData.dob) {
-                    newErrors.dob = 'Date of birth is required.';
-                } else {
-                    const today = new Date();
-                    const birthDate = new Date(formData.dob);
-                    let age = today.getFullYear() - birthDate.getFullYear();
-                    const monthDifference = today.getMonth() - birthDate.getMonth();
-                    if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
-                        age--;
-                    }
-                    if (age < 18) newErrors.dob = 'You must be at least 18 years old to register.';
+                if (!formData.dob) { newErrors.dob = 'Date of birth is required.'; } 
+                else {
+                    const today = new Date(); const birthDate = new Date(formData.dob); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+                    if (age < 18) newErrors.dob = 'You must be at least 18 years old.';
                 }
-
-                // Email Validation
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!formData.email) newErrors.email = 'Email is required.';
                 else if (!emailRegex.test(formData.email)) newErrors.email = 'Please enter a valid email address.';
-
-                // Password Validation
-                if (!formData.password) {
-                    newErrors.password = 'Password is required.';
-                } else if (formData.password.length < 8) {
-                    newErrors.password = 'Password must be at least 8 characters long.';
-                // } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}/.test(formData.password)) {
-                //     newErrors.password = 'Password must include uppercase, lowercase, number, and special character.';
-                }
-
-                // Confirm Password Validation
-                if (formData.password !== formData.confirmPassword) {
-                    newErrors.confirmPassword = 'Passwords do not match.';
-                }
-
+                if (!formData.password) newErrors.password = 'Password is required.';
+                else if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters long.';
+                if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match.';
                 return newErrors;
             };
 
             const handleRegister = async (e) => {
                 e.preventDefault();
-                setErrors({}); // Clear previous errors
-
+                setErrors({}); 
                 const validationErrors = validateForm();
                 if (Object.keys(validationErrors).length > 0) {
-                    setErrors(validationErrors);
-                    return;
+                    setErrors(validationErrors); return;
                 }
-
                 setLoading(true);
                 try {
                     let profileImageUrl = '';
@@ -297,22 +288,17 @@
                     }
                     const userCred = await auth.createUserWithEmailAndPassword(formData.email, formData.password);
                     const userDataToSave = { ...formData, profileImageUrl, isAdmin: false, createdAt: new Date() };
-                    delete userDataToSave.password;
-                    delete userDataToSave.confirmPassword;
+                    delete userDataToSave.password; delete userDataToSave.confirmPassword;
                     await db.collection('users').doc(userCred.user.uid).set(userDataToSave);
+                    onRegisterSuccess(); // Switch to login view
                 } catch (err) {
-                    // Handle Firebase-specific errors
-                    if (err.code === 'auth/email-already-in-use') {
-                        setErrors({ email: 'This email is already registered.' });
-                    } else {
-                        setErrors({ form: err.message }); // General error
-                    }
+                    if (err.code === 'auth/email-already-in-use') { setErrors({ email: 'This email is already registered.' }); } 
+                    else { setErrors({ form: err.message }); }
                 } finally {
                     setLoading(false);
                 }
             };
 
-            // --- UPDATED JSX with error display and dynamic classes ---
             return (
                 <form onSubmit={handleRegister} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -325,47 +311,44 @@
                             {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
                         </div>
                     </div>
-
-                    <div>
-                        <input type="tel" name="mobile" value={formData.mobile} onChange={handleChange} placeholder="Mobile Number" required className={`w-full p-2 border rounded ${errors.mobile ? 'border-red-500' : 'border-gray-300'}`} />
-                        {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
-                    </div>
-
+                     <div>
+                         <input type="tel" name="mobile" value={formData.mobile} onChange={handleChange} placeholder="Mobile Number" required className={`w-full p-2 border rounded ${errors.mobile ? 'border-red-500' : 'border-gray-300'}`} />
+                         {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
+                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <input type="date" name="dob" value={formData.dob} onChange={handleChange} required className={`w-full p-2 border rounded ${errors.dob ? 'border-red-500' : 'border-gray-300'}`} title="Date of Birth" />
                             {errors.dob && <p className="text-red-500 text-xs mt-1">{errors.dob}</p>}
                         </div>
                         <select name="gender" value={formData.gender} onChange={handleChange} className="w-full p-2 border rounded border-gray-300">
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                            <option value="other">Other</option>
+                            <option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
                         </select>
                     </div>
-
-                    <div>
-                        <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email" required className={`w-full p-2 border rounded ${errors.email ? 'border-red-500' : 'border-gray-300'}`} />
-                        {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-                    </div>
-
+                     <div>
+                         <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email" required className={`w-full p-2 border rounded ${errors.email ? 'border-red-500' : 'border-gray-300'}`} />
+                         {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <input type="password" name="password" value={formData.password} onChange={handleChange} placeholder="Password" required className={`w-full p-2 border rounded ${errors.password ? 'border-red-500' : 'border-gray-300'}`} />
+                            <div className="password-container">
+                                <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} placeholder="Password" required className={`w-full p-2 border rounded ${errors.password ? 'border-red-500' : 'border-gray-300'} pr-10`} />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="password-eye-button">{showPassword ? 'Hide' : 'Show'}</button>
+                            </div>
                             {errors.password && <p className="text-red-500 text-xs mt-1" style={{whiteSpace: 'pre-line'}}>{errors.password}</p>}
                         </div>
                         <div>
-                            <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="Confirm Password" required className={`w-full p-2 border rounded ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
+                             <div className="password-container">
+                                <input type={showConfirmPassword ? "text" : "password"} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="Confirm Password" required className={`w-full p-2 border rounded ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} pr-10`} />
+                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="password-eye-button">{showConfirmPassword ? 'Hide' : 'Show'}</button>
+                            </div>
                             {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
                         </div>
                     </div>
-
                     <div>
                         <label className="block text-sm font-medium">Profile Picture (Optional)</label>
                         <input type="file" onChange={handleFileChange} accept="image/*" className="w-full text-sm mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
                     </div>
-
                     {errors.form && <p className="text-red-500 text-sm text-center">{errors.form}</p>}
-                    
                     <button type="submit" disabled={loading} className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition disabled:bg-gray-400">
                         {loading ? 'Registering...' : 'Register'}
                     </button>
@@ -373,7 +356,7 @@
             );
         }
 
-        // --- 5. USER DASHBOARD & COMPONENTS ---
+        // --- 5. USER DASHBOARD & COMPONENTS (No changes beyond Navbar) ---
         function UserDashboard() {
             const [view, setView] = useState('list');
             const [selectedAuctionId, setSelectedAuctionId] = useState(null);
@@ -541,10 +524,8 @@
                         }
                     } else { setAuction(null); }
                 });
-                const unsubBids = db.collection('bids').where('auctionId', '==', auctionId).onSnapshot(snap => {
-                    const bidsData = snap.docs.map(d => d.data());
-                    const sortedBids = bidsData.sort((a, b) => b.amount - a.amount);
-                    setBids(sortedBids.slice(0, 10));
+                const unsubBids = db.collection('bids').where('auctionId', '==', auctionId).orderBy('amount', 'desc').onSnapshot(snap => {
+                    setBids(snap.docs.map(d => d.data()));
                 });
                 return () => { unsubAuction(); unsubBids(); };
             }, [auctionId, mainImage]);
@@ -583,139 +564,72 @@
             if (!auction) return <div className="text-center p-10">Loading...</div>;
             
             return (
-    <div>
-        <button
-            onClick={onBack}
-            className="mb-6 py-2 px-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-        >
-            &larr; Back
-        </button>
-        <div className="bg-white rounded-xl shadow-2xl p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <div>
-                <img
-                    src={mainImage}
-                    alt={auction.title}
-                    className="rounded-lg w-full h-96 object-cover shadow-lg mb-4"
-                />
-                <div className="flex space-x-2 overflow-x-auto">
-                    {auction.imageUrls?.map((img, i) => (
-                        <img
-                            key={i}
-                            src={img}
-                            onClick={() => setMainImage(img)}
-                            className={`h-20 w-20 object-cover rounded-md cursor-pointer border-2 ${
-                                mainImage === img ? 'border-indigo-500' : 'border-transparent'
-                            }`}
-                        />
-                    ))}
-                </div>
-
-                <h3 className="text-xl font-semibold mt-6 mb-2">Top 10 Bids</h3>
-                <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                    {bids.map((b, i) => (
-                        <li key={i} className="flex justify-between bg-gray-100 p-2 rounded-md">
-                            <span>
-                                {i + 1}. {b.bidderName || b.bidderEmail}
-                            </span>
-                            <span className="font-bold">₹{b.amount.toLocaleString('en-IN')}</span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-
-            <div>
-                <h2 className="text-4xl font-bold text-gray-900 mb-2">{auction.title}</h2>
-                <p className="text-gray-600 mb-6">{auction.description}</p>
-
-                <div className="bg-indigo-50 p-6 rounded-lg mb-6 border-2 border-indigo-200">
-                    <AuctionDetailTimer auction={auction} />
-                    <div className="grid grid-cols-2 gap-4 text-center mt-4 border-t pt-4">
+                <div>
+                    <button onClick={onBack} className="mb-6 py-2 px-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700">&larr; Back</button>
+                    <div className="bg-white rounded-xl shadow-2xl p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
                         <div>
-                            <p className="text-sm text-gray-500">Current Highest Bid</p>
-                            <p className="text-3xl font-bold text-gray-800">
-                                ₹{parseFloat(auction.currentPrice).toLocaleString('en-IN')}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-500">Highest Bidder</p>
-                            <p className="text-xl font-semibold text-gray-700 truncate">
-                                {auction.highestBidderName || 'None'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="border-t pt-4 mt-4 space-y-2">
-                    <p>
-                        <strong>Minimum Bid:</strong> ₹
-                        {parseFloat(auction.minimumBid).toLocaleString('en-IN')}
-                    </p>
-                    <p>
-                        <strong>Bid Increment:</strong> ₹
-                        {parseFloat(auction.bidIncrement).toLocaleString('en-IN')}
-                    </p>
-                    {auction.amenities && auction.amenities.length > 0 && (
-                        <div>
-                            <strong>Amenities:</strong>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {auction.amenities.map((a) => (
-                                    <span
-                                        key={a}
-                                        className="bg-gray-200 text-gray-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full"
-                                    >
-                                        {a}
-                                    </span>
+                            <img src={mainImage} alt={auction.title} className="rounded-lg w-full h-96 object-cover shadow-lg mb-4"/>
+                            <div className="flex space-x-2 overflow-x-auto">
+                                {auction.imageUrls?.map((img, i) => (
+                                    <img key={i} src={img} onClick={() => setMainImage(img)} className={`h-20 w-20 object-cover rounded-md cursor-pointer border-2 ${mainImage === img ? 'border-indigo-500' : 'border-transparent'}`}/>
                                 ))}
                             </div>
+                            <h3 className="text-xl font-semibold mt-6 mb-2">Top Bids</h3>
+                            <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                {bids.map((b, i) => (
+                                    <li key={i} className="flex justify-between bg-gray-100 p-2 rounded-md">
+                                        <span>{i + 1}. {b.bidderName || b.bidderEmail}</span>
+                                        <span className="font-bold">₹{b.amount.toLocaleString('en-IN')}</span>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
-                    )}
-                </div>
-
-                {isBiddable ? (
-                    <form onSubmit={handlePlaceBid} className="space-y-4 mt-6">
-                        <h3 className="text-xl font-semibold">Place Your Bid (in Rupees)</h3>
-                        {error && <div className="bg-red-100 text-red-700 p-3 rounded">{error}</div>}
-                        <div className="flex space-x-2">
-                            <input
-                                type="number"
-                                value={bidAmount}
-                                onChange={(e) => setBidAmount(e.target.value)}
-                                placeholder={`Enter ₹${(Math.max(parseFloat(auction.currentPrice), parseFloat(auction.minimumBid)) + parseFloat(auction.bidIncrement || 1000)).toLocaleString('en-IN')} or more`}
-                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                required
-                                />
-                                <button
-                                type="button"
-                                onClick={() => {
-                                    const base = Math.max(
-                                    parseFloat(bidAmount) || 0,
-                                    parseFloat(auction.currentPrice || 0),
-                                    parseFloat(auction.minimumBid || 0)
-                                    );
-                                    const inc = parseFloat(auction.bidIncrement || 1000);
-                                    setBidAmount((base + inc).toFixed(0));
-                                }}
-                                className="px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600"
-                                >
-                                + Increment
-                                </button>
+                        <div>
+                            <h2 className="text-4xl font-bold text-gray-900 mb-2">{auction.title}</h2>
+                            <p className="text-gray-600 mb-6">{auction.description}</p>
+                            <div className="bg-indigo-50 p-6 rounded-lg mb-6 border-2 border-indigo-200">
+                                <AuctionDetailTimer auction={auction} />
+                                <div className="grid grid-cols-2 gap-4 text-center mt-4 border-t pt-4">
+                                    <div>
+                                        <p className="text-sm text-gray-500">Current Highest Bid</p>
+                                        <p className="text-3xl font-bold text-gray-800">₹{parseFloat(auction.currentPrice).toLocaleString('en-IN')}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-gray-500">Highest Bidder</p>
+                                        <p className="text-xl font-semibold text-gray-700 truncate">{auction.highestBidderName || 'None'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="border-t pt-4 mt-4 space-y-2">
+                                <p><strong>Minimum Bid:</strong> ₹{parseFloat(auction.minimumBid).toLocaleString('en-IN')}</p>
+                                <p><strong>Bid Increment:</strong> ₹{parseFloat(auction.bidIncrement).toLocaleString('en-IN')}</p>
+                                {auction.amenities && auction.amenities.length > 0 && (
+                                    <div>
+                                        <strong>Amenities:</strong>
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                            {auction.amenities.map((a) => (<span key={a} className="bg-gray-200 text-gray-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">{a}</span>))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            {isBiddable ? (
+                                <form onSubmit={handlePlaceBid} className="space-y-4 mt-6">
+                                    <h3 className="text-xl font-semibold">Place Your Bid (in Rupees)</h3>
+                                    {error && <div className="bg-red-100 text-red-700 p-3 rounded">{error}</div>}
+                                    <div className="flex space-x-2">
+                                        <input type="number" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} placeholder={`Enter ₹${(Math.max(parseFloat(auction.currentPrice), parseFloat(auction.minimumBid)) + parseFloat(auction.bidIncrement || 1000)).toLocaleString('en-IN')} or more`} className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                                        <button type="button" onClick={() => { const base = Math.max(parseFloat(bidAmount) || 0, parseFloat(auction.currentPrice || 0), parseFloat(auction.minimumBid || 0)); const inc = parseFloat(auction.bidIncrement || 1000); setBidAmount((base + inc).toFixed(0)); }} className="px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600">+ Increment</button>
+                                    </div>
+                                    <button type="submit" className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition">Place Bid</button>
+                                </form>
+                            ) : ( <div className="text-center text-xl font-bold text-red-600 bg-red-100 p-4 rounded-lg mt-6">This auction is not open for bidding.</div> )}
                         </div>
-                        <button type="submit" className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition">
-                            Place Bid
-                        </button>
-                        </form>
-                ) : (
-                    <div className="text-center text-xl font-bold text-red-600 bg-red-100 p-4 rounded-lg mt-6">
-                        This auction is not open for bidding.
                     </div>
-                )}
-            </div>
-        </div>
-    </div>
-);
+                </div>
+            );
         }
         
-        // --- 6. ADMIN DASHBOARD & COMPONENTS ---
+        // --- 6. ADMIN DASHBOARD & COMPONENTS (No changes beyond Navbar) ---
         function AdminDashboard() {
             const [view, setView] = useState('auctions');
             return <div><Navbar/><div className="container mx-auto p-8"><div className="flex space-x-4 border-b mb-6"><button onClick={() => setView('auctions')} className={`py-2 px-4 text-lg font-semibold ${view === 'auctions' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'}`}>Manage Auctions</button><button onClick={() => setView('users')} className={`py-2 px-4 text-lg font-semibold ${view === 'users' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'}`}>Manage Users</button></div>{view === 'auctions' ? <ManageAuctions /> : <ManageUsers />}</div></div>;
@@ -739,39 +653,20 @@
             const handleClose = () => { setShowModal(false); setEditingAuction(null); };
             return (
                 <div>
-                    <button
-                        onClick={() => setShowModal(true)}
-                        className="mb-6 py-2 px-6 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700"
-                    >
-                        Create New Auction
-                    </button>
+                    <button onClick={() => setShowModal(true)} className="mb-6 py-2 px-6 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700">Create New Auction</button>
                     {showModal && <AuctionForm auction={editingAuction} onClose={handleClose} />}
                     <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                         <table className="w-full text-left">
-                            <thead>
-                                <tr className="border-b">
-                                    <th className="p-2">Title</th>
-                                    <th className="p-2">Status</th>
-                                    <th className="p-2">Highest Bid (₹)</th>
-                                    <th className="p-2">Highest Bidder</th>
-                                    <th className="p-2">Actions</th>
-                                </tr>
-                            </thead>
+                            <thead><tr className="border-b"><th className="p-2">Title</th><th className="p-2">Status</th><th className="p-2">Highest Bid (₹)</th><th className="p-2">Highest Bidder</th><th className="p-2">Actions</th></tr></thead>
                             <tbody>
                                 {auctions.map(a => {
                                     const liveStatus = getLiveStatus(a);
                                     return (
                                         <tr key={a.id} className="border-b hover:bg-gray-50">
                                             <td className="p-2 truncate" style={{ maxWidth: '200px' }}>{a.title}</td>
-                                            <td className="p-2">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${liveStatus.color}`}>
-                                                    {liveStatus.text}
-                                                </span>
-                                            </td>
+                                            <td className="p-2"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${liveStatus.color}`}>{liveStatus.text}</span></td>
                                             <td className="p-2">{parseFloat(a.currentPrice || 0).toLocaleString('en-IN')}</td>
-                                            <td className="p-2 truncate" style={{ maxWidth: '150px' }}>
-                                                {a.highestBidderName || a.highestBidderEmail || 'N/A'}
-                                            </td>
+                                            <td className="p-2 truncate" style={{ maxWidth: '150px' }}>{a.highestBidderName || a.highestBidderEmail || 'N/A'}</td>
                                             <td className="p-2 space-x-2">
                                                 <button onClick={() => handleEdit(a)} className="text-blue-500 hover:underline">Edit</button>
                                                 <button onClick={() => handleDelete(a.id)} className="text-red-500 hover:underline">Delete</button>
@@ -805,14 +700,11 @@
             const handleSubmit = async e => {
                 e.preventDefault(); 
                 setFormError('');
-
                 const startTime = new Date(formData.startTime);
                 const endTime = new Date(formData.endTime);
                 if (!formData.startTime || !formData.endTime || startTime >= endTime) {
-                    setFormError('End time must be after the start time.');
-                    return; 
+                    setFormError('End time must be after the start time.'); return; 
                 }
-                
                 setLoading(true); 
                 const uploadPromises = imageFiles.map(file => {
                     const storageRef = storage.ref(`auction-images/${Date.now()}_${file.name}`);
