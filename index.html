@@ -97,12 +97,31 @@
         }
         
         // --- 3. SHARED COMPONENTS ---
-        const Navbar = () => (
-            <nav className="bg-white shadow-lg"><div className="container mx-auto px-6 py-4 flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-indigo-600">BidPlatform</h1>
-                <button onClick={() => auth.signOut()} className="py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold">Logout</button>
-            </div></nav>
-        );
+        const Navbar = () => {
+            const { userData } = useAuth(); // Use the hook to get user data
+
+            return (
+                <nav className="bg-white shadow-lg">
+                    <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+                        <h1 className="text-3xl font-bold text-indigo-600">BidPlatform</h1>
+                        <div className="flex items-center space-x-4">
+                            {/* Check if userData exists before trying to display it */}
+                            {userData && (
+                                <span className="text-gray-800 font-semibold">
+                                    Welcome, {userData.firstName} {userData.lastName}
+                                </span>
+                            )}
+                            <button 
+                                onClick={() => auth.signOut()} 
+                                className="py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                </nav>
+            );
+        };
 
         const Modal = ({ children, onClose, title }) => (
             <div className="modal-overlay"><div className="modal-content">
@@ -562,135 +581,135 @@
             if (!auction) return <div className="text-center p-10">Loading...</div>;
             
             return (
-  <div>
-    <button
-      onClick={onBack}
-      className="mb-6 py-2 px-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-    >
-      &larr; Back
-    </button>
-    <div className="bg-white rounded-xl shadow-2xl p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
-      <div>
-        <img
-          src={mainImage}
-          alt={auction.title}
-          className="rounded-lg w-full h-96 object-cover shadow-lg mb-4"
-        />
-        <div className="flex space-x-2 overflow-x-auto">
-          {auction.imageUrls?.map((img, i) => (
-            <img
-              key={i}
-              src={img}
-              onClick={() => setMainImage(img)}
-              className={`h-20 w-20 object-cover rounded-md cursor-pointer border-2 ${
-                mainImage === img ? 'border-indigo-500' : 'border-transparent'
-              }`}
-            />
-          ))}
-        </div>
-
-        <h3 className="text-xl font-semibold mt-6 mb-2">Top 10 Bids</h3>
-        <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
-          {bids.map((b, i) => (
-            <li key={i} className="flex justify-between bg-gray-100 p-2 rounded-md">
-              <span>
-                {i + 1}. {b.bidderName || b.bidderEmail}
-              </span>
-              <span className="font-bold">₹{b.amount.toLocaleString('en-IN')}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div>
-        <h2 className="text-4xl font-bold text-gray-900 mb-2">{auction.title}</h2>
-        <p className="text-gray-600 mb-6">{auction.description}</p>
-
-        <div className="bg-indigo-50 p-6 rounded-lg mb-6 border-2 border-indigo-200">
-          <AuctionDetailTimer auction={auction} />
-          <div className="grid grid-cols-2 gap-4 text-center mt-4 border-t pt-4">
+    <div>
+        <button
+            onClick={onBack}
+            className="mb-6 py-2 px-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+        >
+            &larr; Back
+        </button>
+        <div className="bg-white rounded-xl shadow-2xl p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
             <div>
-              <p className="text-sm text-gray-500">Current Highest Bid</p>
-              <p className="text-3xl font-bold text-gray-800">
-                ₹{parseFloat(auction.currentPrice).toLocaleString('en-IN')}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Highest Bidder</p>
-              <p className="text-xl font-semibold text-gray-700 truncate">
-                {auction.highestBidderName || 'None'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t pt-4 mt-4 space-y-2">
-          <p>
-            <strong>Minimum Bid:</strong> ₹
-            {parseFloat(auction.minimumBid).toLocaleString('en-IN')}
-          </p>
-          <p>
-            <strong>Bid Increment:</strong> ₹
-            {parseFloat(auction.bidIncrement).toLocaleString('en-IN')}
-          </p>
-          {auction.amenities && auction.amenities.length > 0 && (
-            <div>
-              <strong>Amenities:</strong>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {auction.amenities.map((a) => (
-                  <span
-                    key={a}
-                    className="bg-gray-200 text-gray-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full"
-                  >
-                    {a}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {isBiddable ? (
-          <form onSubmit={handlePlaceBid} className="space-y-4 mt-6">
-            <h3 className="text-xl font-semibold">Place Your Bid (in Rupees)</h3>
-            {error && <div className="bg-red-100 text-red-700 p-3 rounded">{error}</div>}
-            <div className="flex space-x-2">
-                <input
-                type="number"
-                value={bidAmount}
-                onChange={(e) => setBidAmount(e.target.value)}
-                placeholder={`Enter ₹${(Math.max(parseFloat(auction.currentPrice), parseFloat(auction.minimumBid)) + parseFloat(auction.bidIncrement || 1000)).toLocaleString('en-IN')} or more`}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                required
+                <img
+                    src={mainImage}
+                    alt={auction.title}
+                    className="rounded-lg w-full h-96 object-cover shadow-lg mb-4"
                 />
-                <button
-                type="button"
-                onClick={() => {
-                    const base = Math.max(
-                    parseFloat(bidAmount) || 0,
-                    parseFloat(auction.currentPrice || 0),
-                    parseFloat(auction.minimumBid || 0)
-                    );
-                    const inc = parseFloat(auction.bidIncrement || 1000);
-                    setBidAmount((base + inc).toFixed(0));
-                }}
-                className="px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600"
-                >
-                + Increment
-                </button>
+                <div className="flex space-x-2 overflow-x-auto">
+                    {auction.imageUrls?.map((img, i) => (
+                        <img
+                            key={i}
+                            src={img}
+                            onClick={() => setMainImage(img)}
+                            className={`h-20 w-20 object-cover rounded-md cursor-pointer border-2 ${
+                                mainImage === img ? 'border-indigo-500' : 'border-transparent'
+                            }`}
+                        />
+                    ))}
+                </div>
+
+                <h3 className="text-xl font-semibold mt-6 mb-2">Top 10 Bids</h3>
+                <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                    {bids.map((b, i) => (
+                        <li key={i} className="flex justify-between bg-gray-100 p-2 rounded-md">
+                            <span>
+                                {i + 1}. {b.bidderName || b.bidderEmail}
+                            </span>
+                            <span className="font-bold">₹{b.amount.toLocaleString('en-IN')}</span>
+                        </li>
+                    ))}
+                </ul>
             </div>
-            <button type="submit" className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition">
-                Place Bid
-            </button>
-            </form>
-        ) : (
-          <div className="text-center text-xl font-bold text-red-600 bg-red-100 p-4 rounded-lg mt-6">
-            This auction is not open for bidding.
-          </div>
-        )}
-      </div>
+
+            <div>
+                <h2 className="text-4xl font-bold text-gray-900 mb-2">{auction.title}</h2>
+                <p className="text-gray-600 mb-6">{auction.description}</p>
+
+                <div className="bg-indigo-50 p-6 rounded-lg mb-6 border-2 border-indigo-200">
+                    <AuctionDetailTimer auction={auction} />
+                    <div className="grid grid-cols-2 gap-4 text-center mt-4 border-t pt-4">
+                        <div>
+                            <p className="text-sm text-gray-500">Current Highest Bid</p>
+                            <p className="text-3xl font-bold text-gray-800">
+                                ₹{parseFloat(auction.currentPrice).toLocaleString('en-IN')}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-500">Highest Bidder</p>
+                            <p className="text-xl font-semibold text-gray-700 truncate">
+                                {auction.highestBidderName || 'None'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="border-t pt-4 mt-4 space-y-2">
+                    <p>
+                        <strong>Minimum Bid:</strong> ₹
+                        {parseFloat(auction.minimumBid).toLocaleString('en-IN')}
+                    </p>
+                    <p>
+                        <strong>Bid Increment:</strong> ₹
+                        {parseFloat(auction.bidIncrement).toLocaleString('en-IN')}
+                    </p>
+                    {auction.amenities && auction.amenities.length > 0 && (
+                        <div>
+                            <strong>Amenities:</strong>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                                {auction.amenities.map((a) => (
+                                    <span
+                                        key={a}
+                                        className="bg-gray-200 text-gray-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full"
+                                    >
+                                        {a}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {isBiddable ? (
+                    <form onSubmit={handlePlaceBid} className="space-y-4 mt-6">
+                        <h3 className="text-xl font-semibold">Place Your Bid (in Rupees)</h3>
+                        {error && <div className="bg-red-100 text-red-700 p-3 rounded">{error}</div>}
+                        <div className="flex space-x-2">
+                            <input
+                                type="number"
+                                value={bidAmount}
+                                onChange={(e) => setBidAmount(e.target.value)}
+                                placeholder={`Enter ₹${(Math.max(parseFloat(auction.currentPrice), parseFloat(auction.minimumBid)) + parseFloat(auction.bidIncrement || 1000)).toLocaleString('en-IN')} or more`}
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                required
+                                />
+                                <button
+                                type="button"
+                                onClick={() => {
+                                    const base = Math.max(
+                                    parseFloat(bidAmount) || 0,
+                                    parseFloat(auction.currentPrice || 0),
+                                    parseFloat(auction.minimumBid || 0)
+                                    );
+                                    const inc = parseFloat(auction.bidIncrement || 1000);
+                                    setBidAmount((base + inc).toFixed(0));
+                                }}
+                                className="px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600"
+                                >
+                                + Increment
+                                </button>
+                        </div>
+                        <button type="submit" className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition">
+                            Place Bid
+                        </button>
+                        </form>
+                ) : (
+                    <div className="text-center text-xl font-bold text-red-600 bg-red-100 p-4 rounded-lg mt-6">
+                        This auction is not open for bidding.
+                    </div>
+                )}
+            </div>
+        </div>
     </div>
-  </div>
 );
         }
         
