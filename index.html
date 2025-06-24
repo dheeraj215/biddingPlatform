@@ -19,16 +19,13 @@
     <script type="module">
         // IMPORTANT: Replace with your Firebase project's configuration.
         const firebaseConfig = {
-          apiKey: "AIzaSyCjVqLm4kgjNJIcbG3WU2e0Z2I5FCNv8d0",
-          authDomain: "biddingplatform-504b5.firebaseapp.com",
-          projectId: "biddingplatform-504b5",
-          storageBucket: "biddingplatform-504b5.firebasestorage.app",
-          messagingSenderId: "132677234470",
-          appId: "1:132677234470:web:c5ac54305f1aa9a3255be7",
-          measurementId: "G-VTK207QJL0"
-        };
-
-
+            apiKey: "AIzaSyBTtm62_f_dwebHe0MbTzJldHoAT6Vs8kY",
+            authDomain: "biddingplatform-31e44.firebaseapp.com",
+            projectId: "biddingplatform-31e44",
+            storageBucket: "biddingplatform-31e44.appspot.com",
+            messagingSenderId: "662076306120",
+            appId: "1:662076306120:web:aeff50c81bf7fca4dcabfd"
+            };
 
         const app = firebase.initializeApp(firebaseConfig);
         window.db = app.firestore();
@@ -267,31 +264,59 @@
 
             const handleRegister = async (e) => {
                 e.preventDefault();
-                setErrors({}); 
                 const validationErrors = validateForm();
                 if (Object.keys(validationErrors).length > 0) {
-                    setErrors(validationErrors); return;
+                    setErrors(validationErrors);
+                    return;
                 }
+
                 setLoading(true);
+                setErrors({});
+
                 try {
+                    // Step 1: Create user in Firebase Auth FIRST
+                    const userCred = await auth.createUserWithEmailAndPassword(formData.email, formData.password);
+                    const userId = userCred.user.uid;
+
                     let profileImageUrl = '';
+                    
+                    // Step 2: If there's a file, upload it now using the new userId
                     if (profilePicFile) {
-                        const storageRef = storage.ref(`profile-pics/${Date.now()}_${profilePicFile.name}`);
+                        const filePath = `profile-pics/${userId}/profile.jpg`;
+                        const storageRef = storage.ref(filePath);
                         const snapshot = await storageRef.put(profilePicFile);
                         profileImageUrl = await snapshot.ref.getDownloadURL();
                     }
-                    const userCred = await auth.createUserWithEmailAndPassword(formData.email, formData.password);
-                    const userDataToSave = { ...formData, profileImageUrl, isAdmin: false, createdAt: new Date() };
-                    delete userDataToSave.password; delete userDataToSave.confirmPassword;
-                    await db.collection('users').doc(userCred.user.uid).set(userDataToSave);
-                    onRegisterSuccess(); // Switch to login view
+                    
+                    // Step 3: Prepare user data for Firestore
+                    const userDataToSave = {
+                        ...formData,
+                        profileImageUrl: profileImageUrl,
+                        isAdmin: false,
+                        createdAt: new Date()
+                    };
+                    delete userDataToSave.password;
+                    delete userDataToSave.confirmPassword;
+
+                    // Step 4: Save the user document in Firestore
+                    await db.collection('users').doc(userId).set(userDataToSave);
+
+                    onRegisterSuccess();
+
                 } catch (err) {
-                    if (err.code === 'auth/email-already-in-use') { setErrors({ email: 'This email is already registered.' }); } 
-                    else { setErrors({ form: err.message }); }
+                    if (err.code === 'auth/email-already-in-use') {
+                        setErrors({ email: 'This email is already registered.' });
+                    } else if (err.code && err.code.startsWith('storage/')) {
+                        setErrors({ form: "Error: Permission denied for photo upload. Check storage rules." });
+                    }
+                    else {
+                        setErrors({ form: err.message });
+                    }
                 } finally {
                     setLoading(false);
                 }
             };
+
 
             return (
                 <form onSubmit={handleRegister} className="space-y-4">
@@ -350,14 +375,13 @@
             );
         }
 
-        // --- 5. USER DASHBOARD & COMPONENTS (No changes beyond Navbar) ---
+        // --- ALL OTHER COMPONENTS (UNCHANGED) ---
         function UserDashboard() {
             const [view, setView] = useState('list');
             const [selectedAuctionId, setSelectedAuctionId] = useState(null);
             const handleSelectAuction = id => { setSelectedAuctionId(id); setView('detail'); };
             return <div><Navbar /><main className="container mx-auto p-8">{view === 'list' ? <AuctionTabs onSelect={handleSelectAuction} /> : <AuctionDetail auctionId={selectedAuctionId} onBack={() => setView('list')} />}</main></div>;
         }
-
         function AuctionTabs({ onSelect }) {
             const [activeTab, setActiveTab] = useState('live');
             const [allAuctions, setAllAuctions] = useState([]);
@@ -394,7 +418,6 @@
                 </div>
             );
         }
-
         const AuctionCardTimer = ({ startTime, endTime }) => {
             const [displayTime, setDisplayTime] = useState({ text: 'Loading...', color: 'text-gray-500' });
             const calculateTime = useCallback(() => {
@@ -402,7 +425,6 @@
                 const start = startTime?.toDate();
                 const end = endTime?.toDate();
                 if (!start || !end) return; 
-
                 if (now < start) {
                     const diff = start - now;
                     const h = String(Math.floor(diff / 36e5)).padStart(2, '0');
@@ -419,7 +441,6 @@
                     setDisplayTime({ text: 'Auction Closed', color: 'text-red-600 font-bold' });
                 }
             }, [startTime, endTime]);
-
             useEffect(() => {
                 calculateTime();
                 const end = endTime?.toDate();
@@ -428,10 +449,8 @@
                     return () => clearInterval(interval);
                 }
             }, [calculateTime, endTime]);
-            
             return <p className={`text-center text-lg ${displayTime.color}`}>{displayTime.text}</p>;
         };
-
         const AuctionCard = ({ auction, onSelect }) => (
             <div onClick={() => onSelect(auction.id)} className="bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer transition-transform duration-300 hover:shadow-2xl hover:-translate-y-2 flex flex-col">
                 <img className="w-full h-56 object-cover" src={auction.imageUrls?.[0] || "https://placehold.co/600x400/e2e8f0/4a5568?text=Item"} alt={auction.title} />
@@ -450,15 +469,12 @@
                 </div>
             </div>
         );
-
         const AuctionDetailTimer = ({ auction }) => {
             const [display, setDisplay] = useState({ title: '', countdown: '', color: 'text-gray-800' });
-            
             const calculateTime = useCallback(() => {
                 const now = new Date();
                 const start = auction.startTime.toDate();
                 const end = auction.endTime.toDate();
-
                 if (now < start) {
                     const diff = start - now;
                     const h = String(Math.floor(diff / 36e5)).padStart(2, '0');
@@ -475,13 +491,11 @@
                     setDisplay({ title: 'Auction Status', countdown: 'Closed', color: 'text-red-600' });
                 }
             }, [auction]);
-
             useEffect(() => {
                 calculateTime();
                 const interval = setInterval(calculateTime, 1000);
                 return () => clearInterval(interval);
             }, [calculateTime]);
-
             return (
                 <div className="text-center mb-4">
                     <p className={`text-lg font-semibold ${display.color}`}>{display.title}</p>
@@ -493,7 +507,6 @@
                 </div>
             );
         };
-
         function AuctionDetail({ auctionId, onBack }) {
             const [auction, setAuction] = useState(null);
             const [bids, setBids] = useState([]);
@@ -501,13 +514,11 @@
             const { user, userData } = useAuth();
             const [bidAmount, setBidAmount] = useState('');
             const [error, setError] = useState('');
-
             const isBiddable = useMemo(() => {
                 if (!auction) return false;
                 const now = new Date();
                 return auction.startTime?.toDate() <= now && auction.endTime?.toDate() > now;
             }, [auction]);
-
             useEffect(() => {
                 const unsubAuction = db.collection('auctions').doc(auctionId).onSnapshot(doc => {
                     if (doc.exists) {
@@ -523,7 +534,6 @@
                 });
                 return () => { unsubAuction(); unsubBids(); };
             }, [auctionId, mainImage]);
-
             const handlePlaceBid = async (e) => {
                 e.preventDefault(); setError('');
                 const newBid = parseFloat(bidAmount);
@@ -554,9 +564,7 @@
                     setBidAmount('');
                 } catch(err) { setError(err.message); }
             };
-
             if (!auction) return <div className="text-center p-10">Loading...</div>;
-            
             return (
                 <div>
                     <button onClick={onBack} className="mb-6 py-2 px-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700">&larr; Back</button>
@@ -622,13 +630,10 @@
                 </div>
             );
         }
-        
-        // --- 6. ADMIN DASHBOARD & COMPONENTS (No changes beyond Navbar) ---
         function AdminDashboard() {
             const [view, setView] = useState('auctions');
             return <div><Navbar/><div className="container mx-auto p-8"><div className="flex space-x-4 border-b mb-6"><button onClick={() => setView('auctions')} className={`py-2 px-4 text-lg font-semibold ${view === 'auctions' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'}`}>Manage Auctions</button><button onClick={() => setView('users')} className={`py-2 px-4 text-lg font-semibold ${view === 'users' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'}`}>Manage Users</button></div>{view === 'auctions' ? <ManageAuctions /> : <ManageUsers />}</div></div>;
         }
-
         const getLiveStatus = (auction) => {
             const now = new Date(); const startTime = auction.startTime?.toDate(); const endTime = auction.endTime?.toDate();
             if (!startTime || !endTime) return { text: 'Invalid Date', color: 'bg-gray-200 text-gray-800' };
@@ -636,7 +641,6 @@
             if (startTime > now) return { text: 'Upcoming', color: 'bg-blue-200 text-blue-800' };
             return { text: 'Live', color: 'bg-green-200 text-green-800' };
         };
-
         function ManageAuctions() {
             const [auctions, setAuctions] = useState([]);
             const [showModal, setShowModal] = useState(false);
@@ -674,14 +678,12 @@
                 </div>
             );
         }
-
         function AuctionForm({ auction, onClose }) {
             const [formData, setFormData] = useState({ title: auction?.title || '', description: auction?.description || '', location: auction?.location || '', amenities: auction?.amenities || [''], startTime: auction ? new Date(auction.startTime.seconds * 1000).toISOString().slice(0, 16) : '', endTime: auction ? new Date(auction.endTime.seconds * 1000).toISOString().slice(0, 16) : '', minimumBid: auction?.minimumBid || '', bidIncrement: auction?.bidIncrement || '1000', });
             const [imageFiles, setImageFiles] = useState([]);
             const [existingImageUrls, setExistingImageUrls] = useState(auction?.imageUrls || []);
             const [loading, setLoading] = useState(false);
             const [formError, setFormError] = useState('');
-
             const handleChange = e => {
                 setFormError(''); 
                 setFormData({...formData, [e.target.name]: e.target.value});
@@ -690,7 +692,6 @@
             const addAmenity = () => setFormData({...formData, amenities: [...formData.amenities, '']});
             const removeAmenity = i => setFormData({...formData, amenities: formData.amenities.filter((_, idx) => idx !== i)});
             const removeExistingImage = url => setExistingImageUrls(existingImageUrls.filter(u => u !== url));
-            
             const handleSubmit = async e => {
                 e.preventDefault(); 
                 setFormError('');
@@ -711,10 +712,8 @@
                 else { await db.collection('auctions').add(dataToSave); }
                 setLoading(false); onClose();
             };
-
             return <Modal onClose={onClose} title={auction ? 'Edit Auction' : 'Create Auction'}><form onSubmit={handleSubmit} className="space-y-4"><input name="title" value={formData.title} onChange={handleChange} placeholder="Title" required className="w-full p-2 border rounded"/><textarea name="description" value={formData.description} onChange={handleChange} placeholder="Description" required className="w-full p-2 border rounded"/><div><label className="block text-sm font-medium">Auction Images</label><div className="my-2 flex flex-wrap gap-2">{existingImageUrls.map((url, i) => <div key={i} className="relative"><img src={url} className="h-20 w-20 object-cover rounded"/><button type="button" onClick={()=>removeExistingImage(url)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center">&times;</button></div>)}</div><input type="file" onChange={e => setImageFiles(Array.from(e.target.files))} accept="image/*" multiple className="w-full text-sm"/></div><input name="location" value={formData.location} onChange={handleChange} placeholder="Location" required className="w-full p-2 border rounded"/><div><label className="block font-semibold">Amenities</label>{formData.amenities.map((a, i) => <div key={i} className="flex items-center space-x-2 mb-2"><input value={a} onChange={e => handleAmenityChange(i, e.target.value)} placeholder="e.g., Free Parking" className="w-full p-2 border rounded"/><button type="button" onClick={() => removeAmenity(i)} className="p-2 bg-red-500 text-white rounded">&times;</button></div>)}<button type="button" onClick={addAmenity} className="text-sm text-indigo-600">+ Add Amenity</button></div><div className="grid grid-cols-2 gap-4"><label className="font-semibold">Start Time</label><label className="font-semibold">End Time</label><input type="datetime-local" name="startTime" value={formData.startTime} onChange={handleChange} required className="w-full p-2 border rounded" title="Start Time"/><input type="datetime-local" name="endTime" value={formData.endTime} onChange={handleChange} required className="w-full p-2 border rounded" title="End Time"/></div>{formError && <p className="text-red-600 text-center text-sm">{formError}</p>} <div className="grid grid-cols-2 gap-4"><input type="number" name="minimumBid" value={formData.minimumBid} onChange={handleChange} placeholder="Minimum Bid (₹)" required step="1" className="w-full p-2 border rounded"/><input type="number" name="bidIncrement" value={formData.bidIncrement} onChange={handleChange} placeholder="Bid Increment (₹)" required step="1" className="w-full p-2 border rounded"/></div><div className="flex justify-end space-x-4"><button type="button" onClick={onClose} className="py-2 px-4 bg-gray-500 text-white rounded">Cancel</button><button type="submit" disabled={loading} className="py-2 px-4 bg-indigo-600 text-white rounded disabled:bg-gray-400">{loading ? 'Saving...' : (auction ? 'Update' : 'Create')}</button></div></form></Modal>;
         }
-
         function ManageUsers() {
             const [users, setUsers] = useState([]);
             useEffect(() => { const unsub = db.collection('users').onSnapshot(snap => setUsers(snap.docs.map(d => ({id: d.id, ...d.data()})))); return () => unsub(); }, []);
